@@ -1,95 +1,88 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { Authenticator } from "@aws-amplify/ui-react";
+import "@aws-amplify/ui-react/styles.css";
+import { Amplify } from "aws-amplify";
+import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
+import { get, post } from "@aws-amplify/api";
+
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: "ap-southeast-1_hfCJKnwxq",
+      userPoolClientId: "acseb1cb0jkbmncudhf3efm0d",
+    },
+  },
+  API: {
+    REST: {
+      myApiGw: {
+        endpoint:
+          "https://560fo9sve7.execute-api.ap-southeast-1.amazonaws.com/v1",
+        region: "ap-southeast-1",
+      },
+    },
+  },
+});
 
 export default function Home() {
+  const getUserData = async () => {
+    const user = await getCurrentUser();
+    const session = await fetchAuthSession();
+    console.log("getUserData", user);
+  };
+
+  const fetchApiData = async () => {
+    const session = await fetchAuthSession();
+    const ops = get({
+      apiName: "myApiGw",
+      path: "/hello",
+      options: {
+        headers: {
+          Authorization: session.tokens.idToken,
+        },
+      },
+    });
+    const data = await ops.response;
+    console.log(await data.body.json());
+  };
+
+  const postApiData = async () => {
+    const session = await fetchAuthSession();
+    const ops = post({
+      apiName: "myApiGw",
+      path: "/hello",
+      options: {
+        body: {
+          name: "John",
+        },
+        headers: {
+          Authorization: session.tokens.idToken,
+        },
+      },
+    });
+    const data = await ops.response;
+    console.log(await data.body.json());
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <Authenticator
+      signUpAttributes={["name"]}
+      loginMechanisms={["email"]}
+      socialProviders={["google"]}
+    >
+      {({ signOut, user }) => {
+        console.log(user);
+        return (
+          <main>
+            <button onClick={getUserData}>Call User</button>
+            <button onClick={fetchApiData}>Call Api</button>
+            <button onClick={postApiData}>post Api</button>
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+            <div>Hello {user.signInDetails.loginId}</div>
+            <button onClick={signOut}>signOut</button>
+          </main>
+        );
+      }}
+    </Authenticator>
   );
 }
